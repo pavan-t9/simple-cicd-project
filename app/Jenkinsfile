@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    dockerImage = docker.build('<your-dockerhub-username>/node-hello-world')
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    docker.withRegistry('', 'dockerhub') {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sshagent(['your-ssh-key-id']) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ubuntu@<EC2-IP> \\
+                        'docker pull <your-dockerhub-username>/node-hello-world && \\
+                         docker run -d -p 80:3000 <your-dockerhub-username>/node-hello-world'
+                    """
+                }
+            }
+        }
+    }
+}
+
